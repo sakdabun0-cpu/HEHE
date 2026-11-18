@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halloween</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: #121212;
+      color: #ff7518;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      overflow: hidden;
+    }
+    h1 { font-size: 3rem; margin-bottom: 10px; }
+    p { font-size: 1.5rem; color: #ffffff; margin-bottom: 30px; }
+    .buttons { display: flex; gap: 20px; }
+    button {
+      padding: 15px 30px;
+      font-size: 1.2rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #siBtn { background-color: #ff7518; color: #121212; }
+    #noBtn { background-color: #333333; color: #ffffff; }
+    
+    #scareOverlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background-color: #000000;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      overflow: hidden;
+      animation: flashBg 0.08s infinite;
+    }
+    #scareImg {
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      animation: violentShake 0.09s infinite;
+    }
+    @keyframes flashBg {
+      0% { background-color: #000000; }
+      50% { background-color: #4a0000; }
+      100% { background-color: #000000; }
+    }
+    @keyframes violentShake {
+      0% { transform: scale(1.1) translate(-14px, 8px) rotate(-1.5deg); }
+      25% { transform: scale(1.22) translate(16px, -10px) rotate(1.5deg); }
+      50% { transform: scale(1.16) translate(-10px, -14px) rotate(-1deg); }
+      75% { transform: scale(1.26) translate(14px, 12px) rotate(2deg); }
+      100% { transform: scale(1.1) translate(-14px, 8px) rotate(-1.5deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="mainContent">
+    <h1>Halloween</h1>
+    <p>¿Quieres celebrar Halloween conmigo?</p>
+    <div class="buttons">
+      <button id="siBtn">🎃 Si</button>
+      <button id="noBtn">🕸 No</button>
+    </div>
+  </div>
+
+  <!-- Fullscreen Jump Scare Image -->
+  <div id="scareOverlay">
+    <img id="scareImg" src="https://googleusercontent.com" alt="Jumpscare">
+  </div>
+
+  <script>
+    const siBtn = document.getElementById('siBtn');
+    const noBtn = document.getElementById('noBtn');
+    const scareOverlay = document.getElementById('scareOverlay');
+
+    function enterFullScreen() {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+      }
+    }
+
+    // Distortion curve for raspy vocal cords
+    function makeDistortionCurve(amount) {
+      const n_samples = 44100;
+      const curve = new Float32Array(n_samples);
+      const deg = Math.PI / 180;
+      for (let i = 0; i < n_samples; ++i) {
+        const x = i * 2 / n_samples - 1;
+        curve[i] = (3 + amount) * x * 20 * deg / (Math.PI + amount * Math.abs(x));
+      }
+      return curve;
+    }
+
+    function playRealisticHorrorScream() {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContextClass();
+        const now = audioCtx.currentTime;
+        const duration = 2.4;
+
+        // Master compressor to maximize loudness without clipping
+        const compressor = audioCtx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-10, now);
+        compressor.knee.setValueAtTime(10, now);
+        compressor.ratio.setValueAtTime(12, now);
+        compressor.attack.setValueAtTime(0, now);
+        compressor.release.setValueAtTime(0.25, now);
+        compressor.connect(audioCtx.destination);
+
+        // Vocal cord distortion
+        const distortion = audioCtx.createWaveShaper();
+        distortion.curve = makeDistortionCurve(180);
+        distortion.oversample = '4x';
+
+        // Human throat & open-mouth formant filters ("AAAHHH!" resonance)
+        const formant1 = audioCtx.createBiquadFilter();
+        formant1.type = 'bandpass';
+        formant1.frequency.setValueAtTime(850, now);
+        formant1.frequency.linearRampToValueAtTime(1100, now + 0.4);
+        formant1.frequency.linearRampToValueAtTime(750, now + duration);
+        formant1.Q.value = 3.5;
+
+        const formant2 = audioCtx.createBiquadFilter();
+        formant2.type = 'bandpass';
+        formant2.frequency.setValueAtTime(1450, now);
+        formant2.frequency.linearRampToValueAtTime(1850, now + 0.5);
+        formant2.Q.value = 4.0;
+
+        const formant3 = audioCtx.createBiquadFilter();
+        formant3.type = 'peaking';
+        formant3.frequency.setValueAtTime(2800, now); // Piercing shriek presence
+        formant3.gain.value = 18;
+
+        // Main vocal pitch oscillator (sudden intake spike -> agonizing drop)
+        const voiceOsc = audioCtx.createOscillator();
+        voiceOsc.type = 'sawtooth';
+        voiceOsc.frequency.setValueAtTime(520, now);
+        voiceOsc.frequency.exponentialRampToValueAtTime(980, now + 0.18); // Sudden shriek peak
+        voiceOsc.frequency.linearRampToValueAtTime(860, now + 1.1);
+        voiceOsc.frequency.exponentialRampToValueAtTime(340, now + duration);
+
+        // Secondary dissonant sub-voice for demonic layering
+        const subVoiceOsc = audioCtx.createOscillator();
+        subVoiceOsc.type = 'sawtooth';
+        subVoiceOsc.frequency.setValueAtTime(260, now);
+        subVoiceOsc.frequency.exponentialRampToValueAtTime(495, now + 0.18);
+        subVoiceOsc.frequency.exponentialRampToValueAtTime(160, now + duration);
+
+        // Rapid terror vibrato (vocal cord trembling)
+        const vibrato = audioCtx.createOscillator();
+        const vibratoGain = audioCtx.createGain();
+        vibrato.frequency.setValueAtTime(28, now); // Fast panicked flutter
+        vibratoGain.gain.setValueAtTime(45, now);
+        vibrato.connect(vibratoGain);
+        vibratoGain.connect(voiceOsc.frequency);
+        vibratoGain.connect(subVoiceOsc.frequency);
+
+        // Breathy air rasp noise
+        const bufferSize = audioCtx.sampleRate * duration;
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+        const breathNoise = audioCtx.createBufferSource();
+        breathNoise.buffer = noiseBuffer;
+
+        const breathFilter = audioCtx.createBiquadFilter();
+        breathFilter.type = 'bandpass';
+        breathFilter.frequency.setValueAtTime(1600, now);
+        breathFilter.Q.value = 1.5;
+
+        const breathGain = audioCtx.createGain();
+        breathGain.gain.setValueAtTime(0.5, now);
+        breathGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+        // Main scream volume envelope
+        const masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(0.01, now);
+        masterGain.gain.linearRampToValueAtTime(1.0, now + 0.05); // Instant slam
+        masterGain.gain.setValueAtTime(1.0, now + 1.5);
+        masterGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+        // Connect vocal chain
+        voiceOsc.connect(formant1);
+        voiceOsc.connect(formant2);
+        subVoiceOsc.connect(formant1);
+
+        formant1.connect(distortion);
+        formant2.connect(distortion);
+        distortion.connect(formant3);
+        formant3.connect(masterGain);
+
+        breathNoise.connect(breathFilter);
+        breathFilter.connect(breathGain);
+        breathGain.connect(masterGain);
+
+        masterGain.connect(compressor);
+
+        // Start all audio nodes
+        voiceOsc.start(now);
+        subVoiceOsc.start(now);
+        vibrato.start(now);
+        breathNoise.start(now);
+
+        voiceOsc.stop(now + duration);
+        subVoiceOsc.stop(now + duration);
+        vibrato.stop(now + duration);
+        breathNoise.stop(now + duration);
+      } catch (e) {
+        console.log('Audio blocked:', e);
+      }
+    }
+
+    function triggerJumpScare() {
+      enterFullScreen();
+      scareOverlay.style.display = 'flex';
+      
+      if (navigator.vibrate) {
+        navigator.vibrate([300, 50, 400, 50, 500]);
+      }
+
+      playRealisticHorrorScream();
+    }
+
+    siBtn.addEventListener('click', triggerJumpScare);
+    noBtn.addEventListener('click', triggerJumpScare);
+  </script>
+
+</body>
+</html>
